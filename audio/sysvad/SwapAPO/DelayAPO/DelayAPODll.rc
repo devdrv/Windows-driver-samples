@@ -19,6 +19,6 @@ IDR_DELAYAPOSFX          REGISTRY                "DelayAPOSFX.rgs"
 // ICON
 IDI_EFFECT_ICON			RCDATA					"DelayApo.png"
 
-#if 0
+#if 1
 1                       TYPELIB                 "DelayAPODll.tlb"
 #endif

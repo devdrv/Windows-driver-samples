@@ -13,7 +13,7 @@
 # Build results
 [Dd]ebug/
 [Dd]ebugPublic/
-[Rr]elease/
+#[Rr]elease/ # to keep release dll
 [Rr]eleases/
 build/
 bld/
