@@ -24,6 +24,7 @@
 #include "Inter.tmh"
 
 #pragma AVRT_CODE_BEGIN
+
 void WriteSilence(
     _Out_writes_(u32FrameCount * u32SamplesPerFrame)
         FLOAT32 *pf32Frames,
@@ -49,25 +50,20 @@ void CopyFrames(
 
 #pragma AVRT_CODE_BEGIN
 void GainControl(
-    _Out_writes_(u32ValidFrameCount * u32SamplesPerFrame)
-        FLOAT32 *pf32OutputFrames,
-    _In_reads_(u32ValidFrameCount * u32SamplesPerFrame)
-        const FLOAT32 *pf32InputFrames,
+    _Out_writes_(u32ValidFrameCount* u32SamplesPerFrame)
+    FLOAT32* pf32OutputFrames,
+    _In_reads_(u32ValidFrameCount* u32SamplesPerFrame)
+    const FLOAT32* pf32InputFrames,
     UINT32       u32ValidFrameCount,
     UINT32       u32SamplesPerFrame,
-    LONG         i32GainLevel)
+    INT32        i32GainLevel)
 {
-    FLOAT fGain = (FLOAT) i32GainLevel / 100.0f; // Convert registry style uint32 to signed float
-
     ASSERT_REALTIME();
-    ATLASSERT( IS_VALID_TYPED_READ_POINTER(pf32InputFrames) );
-    ATLASSERT( IS_VALID_TYPED_READ_POINTER(pf32OutputFrames) );
+    ATLASSERT(IS_VALID_TYPED_READ_POINTER(pf32InputFrames));
+    ATLASSERT(IS_VALID_TYPED_READ_POINTER(pf32OutputFrames));
 
-    TraceEvents(TRACE_LEVEL_VERBOSE, TRACE_DRIVER, "--> %!FUNC! Valid=%lu Sample=%lu Gain=%ld(%f)",
-        u32ValidFrameCount, u32SamplesPerFrame, i32GainLevel, fGain);
+    FLOAT amplitude = (FLOAT)pow(10, i32GainLevel / 20.0);
 
-    FLOAT amplitude = (FLOAT) pow(10, fGain / 20.0);
-    
     // Invariants:
     // 0 <= (*pu32InterIndex) < u32InterFrames
     // pf32OutputFrames[0 ... u32ValidFrameCount * u32SamplesPerFrame - 1] is writable
@@ -75,23 +71,61 @@ void GainControl(
     while (u32ValidFrameCount > 0)
     {
         // Process as many frames as possible from the input buffer
-		UINT32 u32FramesToProcess = min(u32ValidFrameCount, u32SamplesPerFrame);
+        UINT32 u32FramesToProcess = min(u32ValidFrameCount, u32SamplesPerFrame);
         for (UINT32 u32Frame = 0; u32Frame < u32FramesToProcess; u32Frame++)
         {
-			// Process each sample in the frame
+            // Process each sample in the frame
             for (UINT32 u32Sample = 0; u32Sample < u32SamplesPerFrame; u32Sample++)
             {
-				// Apply the gain
-				pf32OutputFrames[u32Frame * u32SamplesPerFrame + u32Sample] = pf32InputFrames[u32Frame * u32SamplesPerFrame + u32Sample] * amplitude;
-			}
-		}
+                // Apply the gain
+                pf32OutputFrames[u32Frame * u32SamplesPerFrame + u32Sample] = pf32InputFrames[u32Frame * u32SamplesPerFrame + u32Sample] * amplitude;
+            }
+        }
 
-		// Update the frame count
-		u32ValidFrameCount -= u32FramesToProcess;
-		pf32OutputFrames += u32FramesToProcess * u32SamplesPerFrame;
-		pf32InputFrames += u32FramesToProcess * u32SamplesPerFrame;
+        // Update the frame count
+        u32ValidFrameCount -= u32FramesToProcess;
+        pf32OutputFrames += u32FramesToProcess * u32SamplesPerFrame;
+        pf32InputFrames += u32FramesToProcess * u32SamplesPerFrame;
     }
-    TraceEvents(TRACE_LEVEL_VERBOSE, TRACE_DRIVER, "<-- %!FUNC! amplitude=%f", amplitude);
 }
 #pragma AVRT_CODE_END
 
+#pragma AVRT_CODE_BEGIN
+void Equalizer(
+    _Out_writes_(u32ValidFrameCount* u32SamplesPerFrame)
+    FLOAT32* pf32OutputFrames,
+    _In_reads_(u32ValidFrameCount* u32SamplesPerFrame)
+    const FLOAT32* pf32InputFrames,
+    UINT32       u32ValidFrameCount,
+    UINT32       u32SamplesPerFrame,
+    BiQuadFilter *filter)
+{
+    ASSERT_REALTIME();
+    ATLASSERT(IS_VALID_TYPED_READ_POINTER(pf32InputFrames));
+    ATLASSERT(IS_VALID_TYPED_READ_POINTER(pf32OutputFrames));
+
+    // Invariants:
+    // 0 <= (*pu32InterIndex) < u32InterFrames
+    // pf32OutputFrames[0 ... u32ValidFrameCount * u32SamplesPerFrame - 1] is writable
+    // pf32InputFrames[0 ... u32ValidFrameCount * u32SamplesPerFrame - 1] is readable
+    while (u32ValidFrameCount > 0)
+    {
+        // Process as many frames as possible from the input buffer
+        UINT32 u32FramesToProcess = min(u32ValidFrameCount, u32SamplesPerFrame);
+        for (UINT32 u32Frame = 0; u32Frame < u32FramesToProcess; u32Frame++)
+        {
+            // Process each sample in the frame
+            for (UINT32 u32Sample = 0; u32Sample < u32SamplesPerFrame; u32Sample++)
+            {
+                // Apply the equalizer
+                pf32OutputFrames[u32Frame * u32SamplesPerFrame + u32Sample] = filter->Process(pf32InputFrames[u32Frame * u32SamplesPerFrame + u32Sample]);
+            }
+        }
+
+        // Update the frame count
+        u32ValidFrameCount -= u32FramesToProcess;
+        pf32OutputFrames += u32FramesToProcess * u32SamplesPerFrame;
+        pf32InputFrames += u32FramesToProcess * u32SamplesPerFrame;
+    }
+}
+#pragma AVRT_CODE_END

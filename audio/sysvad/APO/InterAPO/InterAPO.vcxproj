@@ -345,6 +345,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="BiQuadFilter.cpp" />
     <ClCompile Include="Inter.cpp" />
     <ClCompile Include="InterAPODll.cpp" />
     <ClCompile Include="InterAPOMFX.cpp	" />
@@ -367,6 +368,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Inc\CustomPropKeys.h" />
+    <ClInclude Include="BiQuadFilter.h" />
     <ClInclude Include="InterAPO.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="Trace.h" />

@@ -139,6 +139,24 @@ STDMETHODIMP_(void) CInterAPOSFX::APOProcess(
                              GetSamplesPerFrame(),
                              m_iInterGainSFX);
 
+                pf32InputFrames = pf32OutputFrames;
+                Equalizer(pf32OutputFrames, pf32InputFrames,
+                    ppInputConnections[0]->u32ValidFrameCount,
+                    GetSamplesPerFrame(),
+                    &m_EqSFX.m_LowFilter);
+
+                pf32InputFrames = pf32OutputFrames;
+                Equalizer(pf32OutputFrames, pf32InputFrames,
+                    ppInputConnections[0]->u32ValidFrameCount,
+                    GetSamplesPerFrame(),
+                    &m_EqSFX.m_MidFilter);
+
+                pf32InputFrames = pf32OutputFrames;
+                Equalizer(pf32OutputFrames, pf32InputFrames,
+                    ppInputConnections[0]->u32ValidFrameCount,
+                    GetSamplesPerFrame(),
+                    &m_EqSFX.m_HighFilter);
+
                 // we don't try to remember silence
                 ppOutputConnections[0]->u32BufferFlags = BUFFER_VALID;
             }
@@ -427,6 +445,13 @@ HRESULT CInterAPOSFX::Initialize(UINT32 cbDataSize, BYTE* pbyData)
     {
         m_fEnableInterSFX = GetCurrentEffectsSetting(m_spAPOSystemEffectsProperties, PKEY_Endpoint_Enable_Interface_SFX, m_AudioProcessingMode);
         m_iInterGainSFX = GetCurrentEffectsSetting(m_spAPOSystemEffectsProperties, PKEY_Endpoint_Inter_Gain_Level_SFX, m_AudioProcessingMode);
+        m_iInterEqLowSFX = GetCurrentEffectsSetting(m_spAPOSystemEffectsProperties, PKEY_Endpoint_Inter_EQ_Low_SFX, m_AudioProcessingMode);
+        m_iInterEqMidSFX = GetCurrentEffectsSetting(m_spAPOSystemEffectsProperties, PKEY_Endpoint_Inter_EQ_Mid_SFX, m_AudioProcessingMode);
+        m_iInterEqHighSFX = GetCurrentEffectsSetting(m_spAPOSystemEffectsProperties, PKEY_Endpoint_Inter_EQ_High_SFX, m_AudioProcessingMode);
+
+       (& m_EqSFX.m_LowFilter)->Prepare(m_iInterEqLowSFX);
+       (& m_EqSFX.m_MidFilter)->Prepare(m_iInterEqMidSFX);
+       (& m_EqSFX.m_HighFilter)->Prepare(m_iInterEqHighSFX);
     }
 
     //
@@ -438,12 +463,15 @@ HRESULT CInterAPOSFX::Initialize(UINT32 cbDataSize, BYTE* pbyData)
     hr = m_spEnumerator->RegisterEndpointNotificationCallback(this);
     IF_FAILED_JUMP(hr, Exit);
 
-     m_bIsInitialized = true;
+    //m_EqSFX.
+
+    m_bIsInitialized = true;
 
 
  Exit:
     TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_DRIVER,
-        "<-- %!FUNC! hr=%!HRESULT! en=%ld gain=%ld", hr, m_fEnableInterSFX, m_iInterGainSFX);
+        "<-- %!FUNC! hr=%!HRESULT! en=%ld SFX=%ld,%ld,%ld,%ld", hr, m_fEnableInterSFX,
+        m_iInterGainSFX, m_iInterEqLowSFX, m_iInterEqMidSFX, m_iInterEqHighSFX);
     return hr;
 }
 
@@ -620,12 +648,16 @@ HRESULT CInterAPOSFX::OnPropertyValueChanged(LPCWSTR pwstrDeviceId, const PROPER
         {
             PROPERTYKEY key;
             LONG *value;
+            BiQuadFilter *filter;
         };
         
         KeyControl controls[] =
         {
-            { PKEY_Endpoint_Enable_Interface_SFX,        &m_fEnableInterSFX },
-            { PKEY_Endpoint_Inter_Gain_Level_SFX,        &m_iInterGainSFX },
+            { PKEY_Endpoint_Enable_Interface_SFX,        &m_fEnableInterSFX,   NULL },
+            { PKEY_Endpoint_Inter_Gain_Level_SFX,        &m_iInterGainSFX,     NULL },
+            { PKEY_Endpoint_Inter_EQ_Low_SFX,            &m_iInterEqLowSFX,    &m_EqSFX.m_LowFilter },
+            { PKEY_Endpoint_Inter_EQ_Mid_SFX,            &m_iInterEqMidSFX,    &m_EqSFX.m_MidFilter },
+            { PKEY_Endpoint_Inter_EQ_High_SFX,           &m_iInterEqHighSFX,   &m_EqSFX.m_HighFilter },
         };
         
         for (int i = 0; i < ARRAYSIZE(controls); i++)
@@ -633,7 +665,7 @@ HRESULT CInterAPOSFX::OnPropertyValueChanged(LPCWSTR pwstrDeviceId, const PROPER
             LONG fOldValue;
             LONG fNewValue = true;
             
-            // Get the state of whether channel swap MFX is enabled or not
+            // Get the registry values for the current processing mode
             fNewValue = GetCurrentEffectsSetting(m_spAPOSystemEffectsProperties, controls[i].key, m_AudioProcessingMode);
 
             // Inter in the new setting
@@ -644,6 +676,10 @@ HRESULT CInterAPOSFX::OnPropertyValueChanged(LPCWSTR pwstrDeviceId, const PROPER
                 // Notify to check the new value...
                 TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_DRIVER, "%!FUNC! Changed[%d]: Key=%!GUID!,%ld val=%ld",
                     i, &controls[i].key.fmtid, controls[i].key.pid, fNewValue);
+                if (controls[i].filter != NULL)
+                {
+					controls[i].filter->Prepare(fNewValue);
+                }
                 nChanges++;
             }
         }
@@ -656,10 +692,11 @@ HRESULT CInterAPOSFX::OnPropertyValueChanged(LPCWSTR pwstrDeviceId, const PROPER
             SetEvent(m_hEffectsChangedEvent);
             nSetEvent++;
         }
-
         m_EffectsLock.Leave();
     }
-    TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_DRIVER, "<-- %!FUNC! hr=%!HRESULT!", hr);
+    TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_DRIVER,
+        "<-- %!FUNC! hr=%!HRESULT! %ld en=%ld SFX=%ld,%ld,%ld,%ld", hr, nSetEvent, m_fEnableInterSFX,
+        m_iInterGainSFX, m_iInterEqLowSFX, m_iInterEqMidSFX, m_iInterEqHighSFX);
     return hr;
 }
 

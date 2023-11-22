@@ -15,6 +15,8 @@
 
 #include <commonmacros.h>
 #include <devicetopology.h>
+#include <float.h>
+#include "BiQuadFilter.h"
 
 _Analysis_mode_(_Analysis_code_type_user_driver_)
 
@@ -54,12 +56,16 @@ public:
     // constructor
     CInterAPOMFX()
     :   CBaseAudioProcessingObject(sm_RegProperties)
-    ,   m_hEffectsChangedEvent(NULL)
-    ,   m_AudioProcessingMode(AUDIO_SIGNALPROCESSINGMODE_DEFAULT)
-    ,   m_fEnableInterMFX(FALSE)
-    ,   m_nInterFrames(0)
-    ,   m_iInterIndex(0)
-    ,   m_iInterGainMFX(0)
+        ,   m_hEffectsChangedEvent(NULL)
+        ,   m_AudioProcessingMode(AUDIO_SIGNALPROCESSINGMODE_DEFAULT)
+        ,   m_fEnableInterMFX(FALSE)
+        ,   m_nInterFrames(0)
+        ,   m_iInterIndex(0)
+        ,   m_iInterGainMFX(0)
+        ,   m_iInterEqLowMFX(0)
+        ,   m_iInterEqMidMFX(0)
+        ,   m_iInterEqHighMFX(0)
+        ,   m_EqMFX()        
     {
         m_pf32Coefficients = NULL;
     }
@@ -156,6 +162,11 @@ public:
     UINT32                                  m_nInterFrames;
     UINT32                                  m_iInterIndex;
     LONG                                    m_iInterGainMFX;
+    LONG                                    m_iInterEqLowMFX;
+    LONG                                    m_iInterEqMidMFX;
+    LONG                                    m_iInterEqHighMFX;
+
+    GraphicEqualizer						m_EqMFX;
 
 private:
     CCriticalSection                        m_EffectsLock;
@@ -180,13 +191,17 @@ class CInterAPOSFX :
 public:
     // constructor
     CInterAPOSFX()
-    :   CBaseAudioProcessingObject(sm_RegProperties)
-    ,   m_hEffectsChangedEvent(NULL)
-    ,   m_AudioProcessingMode(AUDIO_SIGNALPROCESSINGMODE_DEFAULT)
-    ,   m_fEnableInterSFX(FALSE)
-    ,   m_nInterFrames(0)
-    ,   m_iInterIndex(0)
-    ,   m_iInterGainSFX(0)
+        : CBaseAudioProcessingObject(sm_RegProperties)
+        , m_hEffectsChangedEvent(NULL)
+        , m_AudioProcessingMode(AUDIO_SIGNALPROCESSINGMODE_DEFAULT)
+        , m_fEnableInterSFX(FALSE)
+        , m_nInterFrames(0)
+        , m_iInterIndex(0)
+        , m_iInterGainSFX(0)
+        , m_iInterEqLowSFX(0)
+        , m_iInterEqMidSFX(0)
+        , m_iInterEqHighSFX(0)
+        , m_EqSFX()
     {
     }
 
@@ -262,6 +277,11 @@ public:
     UINT32                                  m_nInterFrames;
     UINT32                                  m_iInterIndex;
     LONG                                    m_iInterGainSFX;
+    LONG                                    m_iInterEqLowSFX;
+    LONG                                    m_iInterEqMidSFX;
+    LONG                                    m_iInterEqHighSFX;
+
+    GraphicEqualizer						m_EqSFX;
 };
 #pragma AVRT_VTABLES_END
 
@@ -278,7 +298,7 @@ void GainControl(
     const FLOAT32* pf32InputFrames,
     UINT32       u32ValidFrameCount,
     UINT32       u32SamplesPerFrame,
-    LONG         i32GainLevel);
+    INT32        i32GainLevel);
 
 //
 //   Convenience methods
@@ -297,3 +317,15 @@ void CopyFrames(
         const FLOAT32 *pf32InFrames,
     UINT32 u32FrameCount,
     UINT32 u32SamplesPerFrame );
+
+//
+//  Call graphic equalizer
+//
+void Equalizer(
+    _Out_writes_(u32ValidFrameCount* u32SamplesPerFrame)
+    FLOAT32* pf32OutputFrames,
+    _In_reads_(u32ValidFrameCount* u32SamplesPerFrame)
+    const FLOAT32* pf32InputFrames,
+    UINT32       u32ValidFrameCount,
+    UINT32       u32SamplesPerFrame,
+    BiQuadFilter *filter);
