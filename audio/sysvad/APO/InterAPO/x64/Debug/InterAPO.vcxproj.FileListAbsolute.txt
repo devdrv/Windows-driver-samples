@@ -1,1 +1,2 @@
 C:\IFDev2\InterAPO\InterAPO\x64\Debug\InterAPO.dll
+C:\Users\Tom\GitHub\Windows-driver-samples\audio\sysvad\APO\InterAPO\x64\Debug\InterAPO.dll
