@@ -636,8 +636,12 @@ HRESULT CInterAPOSFX::OnPropertyValueChanged(LPCWSTR pwstrDeviceId, const PROPER
     }
 
     // If either the master disable or our APO's enable properties changed...
-    if (PK_EQUAL(key, PKEY_Endpoint_Enable_Interface_SFX) ||
-        PK_EQUAL(key, PKEY_AudioEndpoint_Disable_SysFx))
+    if (PK_EQUAL(key, PKEY_AudioEndpoint_Disable_SysFx) ||
+        PK_EQUAL(key, PKEY_Endpoint_Enable_Interface_SFX) ||
+        PK_EQUAL(key, PKEY_Endpoint_Inter_Gain_Level_SFX) ||
+		PK_EQUAL(key, PKEY_Endpoint_Inter_EQ_Low_SFX) ||
+        PK_EQUAL(key, PKEY_Endpoint_Inter_EQ_Mid_SFX) ||
+        PK_EQUAL(key, PKEY_Endpoint_Inter_EQ_High_SFX))
     {
         // Synchronize access to the effects list and effects changed event
         m_EffectsLock.Enter();

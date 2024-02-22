@@ -773,8 +773,12 @@ HRESULT CInterAPOMFX::OnPropertyValueChanged(LPCWSTR pwstrDeviceId, const PROPER
     }
 
     // If either the master disable or our APO's enable properties changed...
-    if (PK_EQUAL(key, PKEY_Endpoint_Enable_Interface_MFX) ||
-        PK_EQUAL(key, PKEY_AudioEndpoint_Disable_SysFx))
+    if (PK_EQUAL(key, PKEY_AudioEndpoint_Disable_SysFx) ||
+        PK_EQUAL(key, PKEY_Endpoint_Enable_Interface_MFX) ||
+        PK_EQUAL(key, PKEY_Endpoint_Inter_Gain_Level_MFX) ||
+        PK_EQUAL(key, PKEY_Endpoint_Inter_EQ_Low_MFX) ||
+        PK_EQUAL(key, PKEY_Endpoint_Inter_EQ_Mid_MFX) ||
+        PK_EQUAL(key, PKEY_Endpoint_Inter_EQ_High_MFX))
     {
         // Synchronize access to the effects list and effects changed event
         m_EffectsLock.Enter();
@@ -792,9 +796,9 @@ HRESULT CInterAPOMFX::OnPropertyValueChanged(LPCWSTR pwstrDeviceId, const PROPER
         {
             { PKEY_Endpoint_Enable_Interface_MFX,        &m_fEnableInterMFX,   NULL  },
             { PKEY_Endpoint_Inter_Gain_Level_MFX,        &m_iInterGainMFX,     NULL  },
-            { PKEY_Endpoint_Inter_EQ_Low_SFX,            &m_iInterEqLowMFX,    &m_EqMFX.m_LowFilter },
-            { PKEY_Endpoint_Inter_EQ_Mid_SFX,            &m_iInterEqMidMFX,    &m_EqMFX.m_MidFilter },
-            { PKEY_Endpoint_Inter_EQ_High_SFX,           &m_iInterEqHighMFX,   &m_EqMFX.m_HighFilter },
+            { PKEY_Endpoint_Inter_EQ_Low_MFX,            &m_iInterEqLowMFX,    &m_EqMFX.m_LowFilter },
+            { PKEY_Endpoint_Inter_EQ_Mid_MFX,            &m_iInterEqMidMFX,    &m_EqMFX.m_MidFilter },
+            { PKEY_Endpoint_Inter_EQ_High_MFX,           &m_iInterEqHighMFX,   &m_EqMFX.m_HighFilter },
         };
         
         for (int i = 0; i < ARRAYSIZE(controls); i++)
